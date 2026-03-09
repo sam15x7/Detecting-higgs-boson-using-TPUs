@@ -46,8 +46,7 @@ class HiggsClassifier(Model):
         self.dropout_rate = dropout_rate
         self.use_batch_norm = use_batch_norm
         
-        # Input layer
-        self.input_layer = layers.Input(shape=(input_dim,))
+        # FIX: Removed unused self.input_layer = layers.Input(...)
         
         # Hidden layers
         self.dense_layers = []
@@ -107,6 +106,10 @@ class ResidualBlock(layers.Layer):
     ):
         super(ResidualBlock, self).__init__()
         
+        # FIX: Store units explicitly so build() can safely reference it
+        self.units = units
+        self.use_batch_norm = use_batch_norm
+
         self.dense1 = layers.Dense(
             units, activation='relu', kernel_initializer='he_normal'
         )
@@ -116,17 +119,18 @@ class ResidualBlock(layers.Layer):
         self.dropout = layers.Dropout(dropout_rate)
         self.bn1 = layers.BatchNormalization()
         self.bn2 = layers.BatchNormalization()
-        self.use_batch_norm = use_batch_norm
         
         # Projection shortcut if dimensions change
         self.project = None
     
     def build(self, input_shape):
-        if input_shape[-1] != self.dense2.units:
+        # FIX: Use self.units instead of self.dense2.units (safer, layer may not be built yet)
+        if input_shape[-1] != self.units:
             self.project = layers.Dense(
-                self.dense2.units, activation=None,
+                self.units, activation=None,
                 kernel_initializer='he_normal'
             )
+        super(ResidualBlock, self).build(input_shape)
     
     def call(self, inputs, training=False):
         identity = inputs
@@ -181,6 +185,9 @@ class ResNetHiggs(Model):
         """
         super(ResNetHiggs, self).__init__()
         
+        # FIX: Added missing self.input_dim (was causing AttributeError in build_model)
+        self.input_dim = input_dim
+
         self.initial_dense = layers.Dense(
             initial_units, activation='relu', kernel_initializer='he_normal'
         )
@@ -193,18 +200,15 @@ class ResNetHiggs(Model):
                 ResidualBlock(units_per_block, dropout_rate, use_batch_norm)
             )
         
-        self.global_avg_pool = layers.GlobalAveragePooling1D()
+        # FIX: Use Flatten instead of GlobalAveragePooling1D for cleaner tabular data handling
+        self.flatten = layers.Flatten()
         self.output_layer = layers.Dense(
             1, activation='sigmoid', kernel_initializer='glorot_uniform'
         )
     
     def call(self, inputs, training=False):
         """Forward pass."""
-        # Ensure 2D input
-        if len(inputs.shape) == 2:
-            x = tf.expand_dims(inputs, axis=-1)
-        else:
-            x = inputs
+        x = tf.expand_dims(inputs, axis=-1)
         
         x = self.initial_dense(x)
         x = self.initial_bn(x, training=training)
@@ -213,17 +217,13 @@ class ResNetHiggs(Model):
         for block in self.residual_blocks:
             x = block(x, training=training)
         
-        x = self.global_avg_pool(x)
+        x = self.flatten(x)
         return self.output_layer(x)
     
     def build_model(self) -> Model:
         """Build and return the Keras model."""
         inputs = layers.Input(shape=(self.input_dim,))
-        
-        if len(inputs.shape) == 2:
-            x = tf.expand_dims(inputs, axis=-1)
-        else:
-            x = inputs
+        x = tf.expand_dims(inputs, axis=-1)
         
         x = self.initial_dense(x)
         x = self.initial_bn(x)
@@ -232,7 +232,7 @@ class ResNetHiggs(Model):
         for block in self.residual_blocks:
             x = block(x)
         
-        x = self.global_avg_pool(x)
+        x = self.flatten(x)
         outputs = self.output_layer(x)
         
         return Model(inputs=inputs, outputs=outputs)
@@ -252,6 +252,7 @@ class DenseBlock(layers.Layer):
         
         self.growth_rate = growth_rate
         self.num_layers = num_layers
+        # NOTE: Named layers_list (not self.layers) to avoid shadowing Keras built-in
         self.layers_list = []
         self.bn_layers = []
         self.dropout_layers = []
@@ -314,6 +315,9 @@ class DenseNetHiggs(Model):
         """
         super(DenseNetHiggs, self).__init__()
         
+        # FIX: Added missing self.input_dim (was causing AttributeError in build_model)
+        self.input_dim = input_dim
+
         self.initial_dense = layers.Dense(
             initial_units, activation='relu', kernel_initializer='he_normal'
         )
@@ -337,18 +341,15 @@ class DenseNetHiggs(Model):
             current_units = transition_units
         
         self.final_bn = layers.BatchNormalization()
-        self.global_avg_pool = layers.GlobalAveragePooling1D()
+        # FIX: Use Flatten instead of GlobalAveragePooling1D for cleaner tabular data handling
+        self.flatten = layers.Flatten()
         self.output_layer = layers.Dense(
             1, activation='sigmoid', kernel_initializer='glorot_uniform'
         )
     
     def call(self, inputs, training=False):
         """Forward pass."""
-        # Ensure 2D input
-        if len(inputs.shape) == 2:
-            x = tf.expand_dims(inputs, axis=-1)
-        else:
-            x = inputs
+        x = tf.expand_dims(inputs, axis=-1)
         
         x = self.initial_dense(x)
         
@@ -357,18 +358,14 @@ class DenseNetHiggs(Model):
             x = self.transition_layers[i](x)
         
         x = self.final_bn(x, training=training)
-        x = self.global_avg_pool(x)
+        x = self.flatten(x)
         
         return self.output_layer(x)
     
     def build_model(self) -> Model:
         """Build and return the Keras model."""
         inputs = layers.Input(shape=(self.input_dim,))
-        
-        if len(inputs.shape) == 2:
-            x = tf.expand_dims(inputs, axis=-1)
-        else:
-            x = inputs
+        x = tf.expand_dims(inputs, axis=-1)
         
         x = self.initial_dense(x)
         
@@ -377,7 +374,7 @@ class DenseNetHiggs(Model):
             x = self.transition_layers[i](x)
         
         x = self.final_bn(x)
-        x = self.global_avg_pool(x)
+        x = self.flatten(x)
         outputs = self.output_layer(x)
         
         return Model(inputs=inputs, outputs=outputs)
