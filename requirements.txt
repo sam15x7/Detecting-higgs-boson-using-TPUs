@@ -1,0 +1,31 @@
+# Core dependencies
+tensorflow>=2.10.0
+tensorflow-addons>=0.18.0
+
+# Data processing
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Jupyter notebooks
+jupyter>=1.0.0
+notebook>=7.0.0
+
+# Experiment tracking
+tensorboard>=2.14.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Utilities
+tqdm>=4.66.0
+pyyaml>=6.0
+
+# Optional: For Google Cloud TPU access
+# google-cloud-tpu>=1.18.0
+# google-cloud-storage>=2.10.0
