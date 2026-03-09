@@ -121,8 +121,8 @@ If you use this project in your research, please cite:
 ```bibtex
 @misc{higgs-tpu-detection,
   title={Higgs Boson Detection with TPUs},
-  author={Your Name},
-  year={2024}
+  author={Samihan Chatterjee},
+  year={2026}
 }
 ```
 
